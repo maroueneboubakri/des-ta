@@ -13,13 +13,18 @@ SHELL		:= /bin/bash
 CC		:= gcc
 CFLAGS		:= -Wall -c
 OPT		:= -O3
+PYCFLAGS	:= -std=c99 -fPIC -DPYTHON_LIB $(shell python-config --cflags)
 INCLUDES	:= -I./include
 LD		:= gcc
 LDFLAGS		:=
+PYLDFLAGS	:= -shared -fPIC
 LIBS		:= -lm
 
-OBJS		:= $(patsubst %.c,%.o,$(wildcard src/*.c)) src/p.o src/ta.o
-EXECS		:= ta ta_acquisition
+OBJS		:= $(patsubst %.c,%.o,$(wildcard src/*.c)) src/p.o
+EXECS		:= ta_acquisition
+PYSOS		:= des.so km.so
+PYCS		:= $(patsubst %.py,%.pyc,$(wildcard *.py))
+PYOBJS		:= $(patsubst src/%.c,src/PyC_%.o,$(wildcard src/*.c))
 DATA		:= ta.dat ta.key
 
 .PHONY: help all clean ultraclean check archive
@@ -28,7 +33,7 @@ define HELP_message
 Type:
   <make> or <make help> to get this help message
   <make all> to build everything
-  <make check> to check the compliance of your code with specifications
+  <make check> to check the compliance of ta.py and p.c with specifications
   <make archive> to create the archive of your work
   <make clean> to clean a bit
   <make ultraclean> to really clean
@@ -38,15 +43,14 @@ export HELP_message
 help:
 	@echo "$$HELP_message"
 
-all: $(EXECS)
+all: $(EXECS) $(PYSOS)
 
-ta_acquisition: src/ta_acquisition.o src/des.o src/utils.o src/rdtsc_timer.o src/p.o
+ta_acquisition: src/ta_acquisition.o src/des.o src/rdtsc_timer.o src/utils.o src/p.o
 	$(LD) $(LDFLAGS) $^ -o $@ $(LIBS)
 
-ta: src/ta.o src/des.o src/km.o src/utils.o src/pcc.o
-	$(LD) $(LDFLAGS) $^ -o $@ $(LIBS)
+src/Py_%.o src/PyC_%.o: CFLAGS += $(PYCFLAGS)
 
-src/ta.o: ta.c
+src/PyC_%.o: src/%.c
 	$(CC) $(CFLAGS) $(OPT) $(INCLUDES) $< -o $@
 
 src/p.o: p.c
@@ -55,6 +59,11 @@ src/p.o: p.c
 %.o: %.c
 	$(CC) $(CFLAGS) $(OPT) $(INCLUDES) $< -o $@
 
+des.so: src/Py_des.o src/PyC_des.o src/PyC_utils.o
+	$(LD) $(PYLDFLAGS) $^ -o $@ $(LIBS)
+
+km.so: src/Py_km.o src/PyC_km.o src/PyC_utils.o src/PyC_des.o
+	$(LD) $(PYLDFLAGS) $^ -o $@ $(LIBS)
 define NOREPORT_message
 Report not found. Please write your report, name it report.txt (plain text
 report) or report.pdf (PDF format) and run the script again. Note: if both
@@ -82,7 +91,7 @@ endef
 export CHECK_message
 
 archive:
-	@MandatoryFilesList="team.txt ta.c p.c" && \
+	@MandatoryFilesList="team.txt ta.py p.c" && \
 	for f in $$MandatoryFilesList; do \
 		if [ ! -f $$f ]; then \
 			echo "$$f file not found. Exiting..." && \
@@ -124,13 +133,12 @@ archive:
 	fi && \
 	echo "Report:     $$report"
 
-check: .tests/hwsec_ta.tgz .tests/ta.dat ta.c p.c
+check: .tests/hwsec_ta.tgz .tests/ta.dat ta.py p.c
 	@cd .tests/hwsec_ta && \
-	cp ../../ta.c . && \
-	$(MAKE) ta && \
-	k=`./ta ../ta.dat 10` && \
+	cp ../../ta.py . && \
+	k=`./ta.py ../ta.dat 10` && \
 	if [[ ! "$$k" =~ ^0x[0-9a-fA-F]{12}$$ ]]; then \
-		echo "ta.c invalid output:" && \
+		echo "ta.py invalid output:" && \
 		echo "$$k" && \
 		exit 1; \
 	fi && \
@@ -149,7 +157,7 @@ check: .tests/hwsec_ta.tgz .tests/ta.dat ta.c p.c
 	@mkdir -p .tests && \
 	cd .tests && \
 	rm -f hwsec_ta.tgz && \
-	wget http://soc.eurecom.fr/HWSec/labs/C/hwsec_ta.tgz &> /dev/null && \
+	wget http://soc.eurecom.fr/HWSec/labs/python/hwsec_ta.tgz &> /dev/null && \
 	rm -rf hwsec_ta && \
 	tar xf hwsec_ta.tgz &> /dev/null && \
 	$(MAKE) -C hwsec_ta all &> /dev/null
@@ -164,4 +172,4 @@ clean:
 	rm -f $(OBJS)
 
 ultraclean: clean
-	rm -rf $(EXECS) $(DATA) .tests
+	rm -rf $(EXECS) $(DATA) $(PYSOS) $(PYCS) $(PYOBJS) .tests

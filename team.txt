@@ -1,0 +1,22 @@
+########################################################################
+# Please fill this form to identify your team. The lines starting with
+# "#" (like this one) are comments. Edit only the non-commented
+# token="value" pairs. Modify *only* the values between double quotes.
+# Do not remove the double quotes, do not add double quotes inside
+# values, do not insert spaces between tokens and values, do not change
+# the tokens and do not add new tokens.
+########################################################################
+
+# First name and last name of student #1, e.g.: student1="First Last"
+student1="Marouene Boubakri"
+
+# e-mail address of student #1. Leave empty if same address as the one
+# used to send your work, e.g.: email1="first.last@eurecom.fr"
+email1="marouene.boubakri@eurecom.fr"
+
+# First name and last name of student #2. Leave empty if you are alone.
+student2=""
+
+# e-mail address of student #2. Leave empty if same address as the one
+# used to send your work or if student2="".
+email2=""
